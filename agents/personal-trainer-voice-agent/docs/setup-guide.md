@@ -10,7 +10,7 @@ This guide walks you through importing, configuring, and running the Personal Tr
 1. Log in to your n8n Cloud instance.
 2. In the left sidebar, click **Workflows**.
 3. Click the **+** button (top right) → select **Import from File**.
-4. Upload `agents/Personal Trainer Voice Agent.json`.
+4. Upload `workflow.json` from the `agents/personal-trainer-voice-agent/` directory.
 5. The workflow will open in the canvas in an **inactive** state — do not activate it until all credentials and variables are configured (Steps 2 & 3 below).
 
 ### Self-Hosted / Docker
