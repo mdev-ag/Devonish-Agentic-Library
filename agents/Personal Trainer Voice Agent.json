@@ -1,0 +1,337 @@
+{
+  "name": "Personal Trainer Voice Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "469c6530-a105-4037-b838-fa2367f323b6",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "{{YOUR_GOOGLE_CALENDAR_ID}}",
+          "mode": "list",
+          "cachedResultName": "Nico Minvielle Personal Training"
+        },
+        "timeMax": "={{ $now.plus({ days: 1 }).endOf('day') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "1eb7c720-deb3-46b0-954e-ed33bb5fc273",
+      "name": "Get many events",
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Prompt:\nYou are a highly precise data extraction assistant for Nico Minvielle Personal Training. Your goal is to parse raw Google Calendar event data and extract specific client details into a valid JSON format for a voice-based coaching agent.\n\nInstitutional Context:\n\nYou represent \"Nico's AI Assistant,\" a Montreal-based fitness coaching service.\n\nThe tone is professional, high-energy, and motivating.\n\nCRITICAL OUTPUT RULE:\n\nReturn ONLY a raw JSON object.\n\nDo NOT include markdown code blocks (e.g., no ```json), no preamble, and no conversational text.\n\nIn context of OpenAI Structured Outputs, ensure 'additionalProperties' is set to false.\n\nNavigation & Intelligence Rules:\n\nclient_name: Clean the \"Name\" field to only include the first name if both are present to keep the voice interaction friendly.\n\nphone_number: Format as E.164 (e.g., +16473272544). If missing from the description, return null.\n\nappointment_time: Ensure the appointment_time is formatted in a human-readable way (e.g., \"tomorrow at 1:00 PM\") so the voice agent sounds natural.\n\nsession_reason: Identify the \"Reason\" for the session (e.g., Weekly Training Session, First Session, or Consultation)."
+            },
+            {
+              "content": "=Extract client details for a personalized coaching check-in from the following event data:\n\nEVENT DATA:\nSummary: {{ $json.summary }}\nDescription: {{ $json.description }}\nStart Time: {{ $json.start.dateTime }}\nTimezone: {{ $json.start.timeZone }}\n\nMIND FRAMEWORK INSTRUCTIONS:\n1. Session Memory: Extract the Client Name, Phone Number, and Email from the description[cite: 114, 115].\n2. Intelligence: Identify the \"Reason\" for the session (e.g., Weekly Training). If the description mentions \"Nutrition\" or \"Logistics,\" flag this as a primary talking point[cite: 153, 157].\n3. Navigation: Format the Start Time into a natural, friendly phrase (e.g., \"tomorrow at 1:00 PM\") to ensure the voice agent sounds human and reduces cognitive load for the listener[cite: 171, 172, 174].\n4. Contextual Rule: If the phone number is missing, the output for \"phone_number\" must be null[cite: 82].\n\nReturn ONLY a valid JSON object."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"client_name\": { \"type\": \"string\" },\n    \"phone_number\": { \"type\": [\"string\", \"null\"] },\n    \"email\": { \"type\": \"string\" },\n    \"session_reason\": { \"type\": \"string\" },\n    \"appointment_time\": { \"type\": \"string\" }\n  },\n  \"required\": [\n    \"client_name\", \n    \"phone_number\", \n    \"email\", \n    \"session_reason\", \n    \"appointment_time\"\n  ],\n  \"additionalProperties\": false\n}"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "e7f62521-8369-4f13-aceb-8bca415ac23f",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4e232039-bb37-4871-b17f-82f34950154d",
+              "name": "client_name",
+              "value": "={{ $json.output[0].content[0].text.client_name }}",
+              "type": "string"
+            },
+            {
+              "id": "c38c8af7-09a7-478a-982c-2c6f101b262b",
+              "name": "phone_numner",
+              "value": "={{ $json.output[0].content[0].text.phone_number }}",
+              "type": "string"
+            },
+            {
+              "id": "adb3163e-47b8-4829-b257-8de72e8e1142",
+              "name": "appointment_time",
+              "value": "={{ $json.output[0].content[0].text.appointment_time }}",
+              "type": "string"
+            },
+            {
+              "id": "702efd00-f11d-46d7-b632-b0bceae59d3c",
+              "name": "session_reason",
+              "value": "={{ $json.output[0].content[0].text.session_reason }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        768,
+        0
+      ],
+      "id": "b579f345-3b8e-49f2-a0b5-5ebf004a16a3",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/v2/create-phone-call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from_number\": \"{{YOUR_RETELL_FROM_NUMBER}}\", \n  \"to_number\": \"{{ $json.phone_numner }}\",\n  \"agent_id\": \"{{YOUR_RETELL_AGENT_ID}}\",\n  \"retell_llm_dynamic_variables\": {\n    \"client_name\": \"{{ $json.client_name }}\",\n    \"appointment_time\": \"{{ $json.appointment_time }}\",\n    \"session_reason\": \"{{ $json.session_reason }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        976,
+        0
+      ],
+      "id": "bcf27259-49ff-41bf-a4d8-f8c05645cd7c",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Retell AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-call-summary",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        336
+      ],
+      "id": "88500d07-7727-48f6-ba19-1ccd9ea5cbba",
+      "name": "Webhook",
+      "webhookId": "ca2af3d6-f29d-473e-8394-1a628a6b1294"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Role & Context\n\nYou are Nico Minvielle's Data Analyst. Your task is to analyze transcripts from Retell bilingual (English/French) check-in calls and extract structured intelligence.\n\nIntelligent Bilingual Normalization\n\nThe transcription engine often misinterprets French phonetics as English words. You must apply the following logic:\n\nContextual Inference: Identify the language preference established at the start. If French is chosen, interpret English-sounding transcriptions as French phonetic equivalents (e.g., \"We\" -> \"Oui\", \"Dies\" -> \"Dix\", \"Cat\" -> \"Quatre\").\n\nIntent Over Literalism: Prioritize conversational intent over literal spelling.\n\nNumber Resolution: Resolve energy scores to the intended integer (1-10).\n\nTranslation: Translate all extracted qualitative notes (drivers, injuries) into English for Nico’s briefing.\n\nExtraction Rules (The Data Contract)\n\nclient_name: The name of the client.\n\nappointment_confirmed: Boolean (True if confirmed; False if cancelled/reschedule requested).\n\nenergy_level: Integer (1-10). Resolve phonetic numbers.\n\ncontextual_drivers: A concise English summary of why their energy is at that level.\n\nhealth_injury_notes: Capture specific physical complaints, injuries, work stress, or personal updates shared (including the final \"share with Nico\" section).\n\nOutput Format\n\nOutput ONLY a valid, structured JSON object. If a piece of information is missing from the transcript, you MUST still provide the key with an empty string \"\" or a default value (like False for booleans) to satisfy the schema requirements."
+            },
+            {
+              "content": "=Transcript:  {{ $json.body.call.transcript }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"client_name\": {\n      \"type\": \"string\"\n    },\n    \"appointment_confirmed\": {\n      \"type\": \"boolean\"\n    },\n    \"energy_level\": {\n      \"type\": \"integer\"\n    },\n    \"contextual_drivers\": {\n      \"type\": \"string\"\n    },\n    \"health_injury_notes\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"client_name\",\n    \"appointment_confirmed\",\n    \"energy_level\",\n    \"contextual_drivers\",\n    \"health_injury_notes\"\n  ],\n  \"additionalProperties\": false\n}\n"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        192,
+        336
+      ],
+      "id": "c36d2ebc-436d-4179-827f-91253d641212",
+      "name": "Message a model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "{{YOUR_EMAIL_ADDRESS}}",
+        "subject": "={{ $json.output[0].content[0].text.energy_level <= 4 ? \"⚠️ URGENT: \" : \"\" }}{{ $json.output[0].content[0].text.appointment_confirmed ? \"✅ Confirmed\" : \"❌ Cancelled\" }}: {{ $json.output[0].content[0].text.client_name }} ({{ $json.output[0].content[0].text.energy_level }}/10)\n",
+        "message": "=<h3>Performance Briefing: {{ $json.output[0].content[0].text.client_name }}</h3>\n\n<p><strong>Status:</strong> {{ $json.output[0].content[0].text.appointment_confirmed ? \"✅ CONFIRMED\" : \"❌ CANCELLED / RESCHEDULE REQUESTED\" }}</p>\n\n<hr>\n\n<h4>📊 Session Readiness</h4>\n<ul>\n  <li><strong>Energy Level:</strong> {{ $json.output[0].content[0].text.energy_level }}/10</li>\n  <li><strong>Context:</strong> {{ $json.output[0].content[0].text.contextual_drivers }}</li>\n</ul>\n\n<h4>🩹 Physical Notes</h4>\n<p>{{ $json.output[0].content[0].text.health_injury_notes || \"No injuries or physical complaints reported.\" }}</p>\n\n<hr>\n\n<p><small><em>This report was automatically generated by Nico's AI Assistant.</em></small></p>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        544,
+        336
+      ],
+      "id": "462c659a-b219-44ac-8e5b-ea6b4e1c20e2",
+      "name": "Send a message",
+      "webhookId": "3832183f-c5b2-412e-bc87-a0197e963059",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ddde3b36-1d4e-4d8e-a8fc-8d4c3d59d24a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "{{N8N_INSTANCE_ID}}"
+  },
+  "id": "UM1mlD0BBUpXcgh9",
+  "tags": []
+}

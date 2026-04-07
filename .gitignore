@@ -1,0 +1,3 @@
+# Private configuration and credential backups
+configs/
+.DS_Store
