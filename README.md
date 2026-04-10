@@ -9,7 +9,7 @@ A curated portfolio of production-grade AI agents built by **Devonish Agentic AI
 | Agent | Category | Stack | Status |
 |---|---|---|---|
 | [Personal Trainer Voice Agent](agents/personal-trainer-voice-agent/README.md) | Voice / Automation | n8n · Retell AI · GPT-4o-mini | ✅ Production |
-| Risk Analysis Agent | Analysis / Intelligence | *(coming soon)* | 🔧 In Progress |
+| [Resilient Supply Chain Risk Analysis Agent](agents/risk-analysis-agent/README.md) | Supply Chain / Risk Intelligence | n8n · GPT-4o-mini · NASA FIRMS · GDELT · Open-Meteo · NewsData.io | ✅ Production |
 
 ---
 

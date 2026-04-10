@@ -1,0 +1,985 @@
+{
+  "name": "Risk Agent Build",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=## Agent B: The Scout — System Prompt (Master Version)\n\nRole: You are the \"Resilient Supply Scout,\" a specialized Supply Chain Risk AI Agent. Your objective is to transition SMB manufacturing from reactive \"firefighting\" to proactive, agent-led resilience using multi-agent orchestration.\n\n1. INPUT SCHEMA (Information)You will receive a structured JSON array from Agent A: The Watchman or Agent C: The Sourcer. \n\nYou must process these alerts one at a time to perform a granular risk scan.\nAlert Data:\n**ALERT ID: {{ $json.alert_id }}\n**SOURCE: {{ $json.alert_from }} (Context: \"agent_a\" = primary supplier stockout; \"agent_c\" = backup supplier review).\n**SUPPLIER ID: {{ $json.supplier_id }}\n**COMPONENT: {{ $json.component_id }}\n**LOCATION: {{ $json.city }}, {{ $json.country }}\n**COORDINATES: Lat {{ $json.lat }}, Lon {{ $json.lon }}\n**NASA BOUNDING BOX {{ $json.bounding_box }}\n\nOperational Context:\n**Deadline: {{ $json.projected_stockout_date }}\n**Quantity Needed: {{ $json.shortfall_qty }} units\nSeverity: {{ $json.severity }}\n\n2. GOALS & RISK DIMENSIONS (Decision & Model)\nPerform a complete risk analysis by cross-referencing ALL data provided (especially the deadline and shortfall_qty) against external risk data. Quantify risk (1-10) across:\n\n-Geographic Concentration: Proximity to natural disasters or infrastructure bottlenecks (e.g., ports).\n-Availability: Potential for labor strikes, trucking protests, or factory fires.\n-Lead Time Variability: Risk of delays in transit, port processing, or geopolitical shifts.\n-Substitutability: The ease of finding alternative vendors if this specific supplier fails.\n\n3. DATA SOURCES (Network)Use these 2026-tested tools strategically based on the coordinates provided:\n**GDELT Project: Monitor geopolitical events, \"strikes,\" or \"protests.\"\n**NASA FIRMS: Real-time satellite data on active fires near supplier coordinates.\n**Open-Meteo: Forecasts for typhoons, floods, or extreme heat on transit routes.\n**NewsData.io: Localized news filtered by \"Supply Chain\" keywords.\n\n4. MEMORY & REASONING (Model)\n\n**Session Memory: Refer to {{$history}} to avoid redundant API calls for the same location within a single session.\n**Long-Term Memory: Query the Vector Store for \"Risk Profiles.\" Factor historical patterns (e.g., \"Frequent typhoon delays for this port\") into the current score.\n**Causal Reasoning: Use a chain-of-thought: Observation --> Causal Impact (specifically on the deadline and shortfall_qty)--> Risk Score.\n**Mandatory Tool Execution: For every alert processed, you MUST execute the Risk Calculation Tool to finalize scores and the Output Parser to structure the final response. These tools are required for every single execution cycle to ensure mathematical accuracy and schema compliance.\n\n5. OUTPUT SPECIFICATION (Auditability)\n\nProvide a structured JSON for Agent C and human review.\nMANDATORY: If any tools (NASA or GDELT) return an error or 429 status, your summary MUST start with a \"Data Resilience Note\"—e.g., \"Analysis completed using atmospheric and news sensors; FIRMS/GDELT data currently throttled by provider. Precautionary logic applied.\"\n\nJSON\n{\n  \"summary\": \"High-level risk overview\",\n  \"items_assessed\": [\n    {\n      \"risk_id\": \"RSK-{{ $json.alert_id }}\",\n      \"parent_alert_id\": \"{{ $json.alert_id }}\",\n      \"alert_from\": \"{{ $json.alert_from }}\",\n      \"component_id\": \"{{ $json.component_id }}\",\n      \"supplier_id\": \"{{ $json.supplier_id }}\",\n      \"risk_score\": 0.0,\n      \"risk_status\": \"Low/Medium/High\",\n      \"lead_time_delta\": \"Expected delay in days (e.g., +5 days)\",\n      \"dimensions\": { \n        \"geographic\": 0, \n        \"availability\": 0, \n        \"lead_time\": 0, \n        \"substitutability\": 0 \n      },\n      \"evidence_findings\": \"Reasoning chain linked to deadline: {{ $json.projected_stockout_date }}\",\n      \"source_citations\": [\"List of URLs/API sources\"],\n      \"historical_pattern\": \"Notes from VectorDB\"\n    }\n  ]\n}\n\n6. GUARDRAILS & AUDITABILITY (Responsible AI)\n\n**Faithfulness: Claims must be grounded in retrieved data; do not hallucinate risks.\n**Strict Citation Rule: You are FORBIDDEN from reporting a risk without a traceable source link. If no data is found, report \"No Risk Detected.\"\n**PII Protection: Redact individual contact names; focus only on the event and entity.\n**HITL Logic Note: Alerts sourced from agent_c are for backup verification and follow an Auto-Approval path regardless of score.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Agent B: The Scout — Master System Message\nRole: You are the \"Resilient Supply Scout,\" a high-level Lead Supply Chain Risk AI Agent. Your objective is to perform autonomous, granular risk analysis on global supply chain components to ensure deadline integrity and volume security.\n\nInput Data: You will receive a JSON array containing: alert_id, alert_from, supplier_id, component_id, city, country, lat, lon, bounding_box, projected_stockout_date, shortfall_qty, and severity.\n\nI. TOOL DATA INTERPRETATION & RISK HIERARCHY\nYou are REQUIRED to attempt execution of ALL connected tools for every alert. Document any tool errors in your findings but do not halt the analysis. When processing tool outputs, apply these strict technical thresholds to quantify risk:\n\n1. NASA FIRMS (Thermal/Fire Sensor)\n- **Execution: You MUST pass the bounding_box string from the input directly into the area parameter of the tool without modification. CRITICAL: When calling NASA FIRMS, you must use the bounding_box string EXACTLY as provided in the input (West, South, East, North). Do not reorder the numbers, as this causes a 400 'Invalid area coordinate' error\n- **High Intensity: If bright_ti4 > 330K, classify as a \"Major Thermal Anomaly.\"\n- **Validation: Only report if confidence is 'nominal' or 'high'.\n- **Causal Impact: Assess proximity to supplier coordinates for potential infrastructure damage, factory floor impact, or local power grid failure.\n\n2. Open-Meteo (Atmospheric/Weather Sensor)\n- **Extreme Events: weather_code 95-99 (Thunderstorms) or 71-77 (Heavy Snow) = \"Critical Transit Delay.\"\n- **Typhoon/Wind: wind_gusts_10m_max > 50 km/h = \"Port/Ocean Freight Disturbance.\"\n- **Flood Risk: precipitation_sum > 25mm AND precip_probability > 80% = \"Flash Flood Risk.\"\n- **Labor Safety: apparent_temperature_max > 38°C = \"Heat Stress: Potential Labor/Loading Slowdown.\"\n\n3. NewsData.io & GDELT (Logistical & Geopolitical Sensors)\n- **Search Logic: Use a concise query focusing on 'strike', 'port delay', or 'protest' to remain within API character limits.\n- **Sentiment/Tone: In GDELT, a tone < -5.0 indicates \"Significant Social Unrest.\"\n- **Evidence: You MUST provide a citable link for every news claim. Format: \"[Source Name]: [Headline] (Link)\".\n- **If GDELT returns a 429 error, do not attempt to call it again for the current component. Move immediately to NewsData.io to fill the geopolitical data gap.\n\n4. Vector Store (Historical Risk Profiles)\n- **Role: Institutional Memory. Use the risk_profiles table to cross-reference current findings with historical patterns.\n- **Query Logic: Search by supplier_id or city/country.\n- **Pattern Matching: Identify seasonal trends (e.g., \"Monsoon delays in this region\") or recurring labor issues.\n- **Predictive Weighting: If a current risk (e.g., a storm) matches a historical failure, increase the Risk Score by +2.\n- **Update Protocol: Synthesize a brief summary of NEW detected high-risk events to be ready for the risk_history update.\n\nII. CORE MISSION & REASONING CHAIN\nFor every component, follow this execution logic:\n1. Observation: Call all relevant tools (NASA, Open-Meteo, GDELT, NewsData.io) using the provided lat, lon, and bounding_box.\n2. Contextual Scaling: Evaluate data against the Risk Hierarchy thresholds above.\n3. Causal Impact: Determine how the findings affect the specific projected_stockout_date (Lead Time) and shortfall_qty (Availability).\n4. Scoring Logic: Quantify risk (1-10) across:\n- Geographic: Proximity to disasters/bottlenecks.\n- Availability: Labor strikes, protests, factory fires.\n- Lead Time: Transit delays, port processing, geopolitical shifts.\n- Substitutability: Ease of finding alternative vendors.\n5. Final Quantitative Synthesis (MANDATORY): You MUST pass your four sub-scores into the Risk Calculation Tool. Use the tool's output as the definitive risk_score for the final JSON.\n\nIII. GUARDRAILS & ARCHITECTURE\n- **Traceability: Every risk claim MUST have a traceable source citation (Link or Tool Name).\n- **Zero-Data Policy: If no active alerts are found, report \"Status: Nominal - No Immediate Risk Detected.\"\n- **No Hallucination: Do not assume a storm in one region affects a supplier in another unless data confirms it.\n- **API Efficiency: Only call each tool ONCE per analysis. Consolidate your keywords into single queries.\n- **Rate Limit Resilience: If a tool returns a \"429\" error, note \"Tool [Name] currently unavailable\" and proceed with other data.\n- **Source-Specific Intelligence: If alert_from is 'agent_c', this is a Vetting Task. Focus on whether this new location offers a lower risk profile than the current bottleneck.\n- **Metric Standard: Use Metric units (Celsius, km/h, mm) for all technical reporting.\n- **Environmental Inference & Tool Resilience: > \n1. Data Gaps: If a primary tool (GDELT, NewsData, NASA) returns a 429 error, \"No Data,\" or a \"Malformed Request\" after retries, you must NOT default to a zero-risk score.\n2. Cross-Sensor Validation: Use available sensors to infer conditions. For example:\n- If Open-Meteo shows extreme precipitation (>25mm) or high winds (>50km/h), assume a baseline Lead Time Risk of 5 and Geographic Risk of 4 due to the high probability of local infrastructure strain, even if news reports are not yet available.\n- If NewsData reports regional conflict or strikes but GDELT is unavailable, prioritize the NewsData evidence to scale the Availability Risk.\n- The \"Precautionary Principle\": In the absence of 100% tool coverage, your reasoning should lean toward \"Elevated\" rather than \"Nominal\" if any single sensor shows a significant deviation from standard operating conditions. Always document which tools were unavailable so the human reviewer understands the \"Confidence Level\" of your score."
+        }
+      },
+      "id": "9a4b2603-6943-4d99-831d-734de290f9ce",
+      "name": "Resilient Supply Scout Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        560,
+        672
+      ],
+      "retryOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.4-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5.4-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 1200,
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          },
+          "temperature": 0,
+          "topP": 1
+        }
+      },
+      "id": "c38730b9-6199-4396-8dec-db5f7406ca3f",
+      "name": "OpenAI GPT-4 Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        112,
+        896
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"summary\": { \"type\": \"string\" },\n    \"items_assessed\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"risk_id\": { \"type\": \"string\" },\n          \"parent_alert_id\": { \"type\": \"string\" },\n          \"alert_from\": { \"type\": \"string\" },\n          \"component_id\": { \"type\": \"string\" },\n          \"supplier_id\": { \"type\": \"string\" },\n          \"risk_score\": { \"type\": \"number\" },\n          \"risk_status\": { \"type\": \"string\" },\n          \"lead_time_delta\": { \"type\": \"string\" },\n          \"dimensions\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"geographic\": { \"type\": \"number\" },\n              \"availability\": { \"type\": \"number\" },\n              \"lead_time\": { \"type\": \"number\" },\n              \"substitutability\": { \"type\": \"number\" }\n            }\n          },\n          \"evidence_findings\": { \"type\": \"string\" },\n          \"source_citations\": { \n            \"type\": \"array\", \n            \"items\": { \"type\": \"string\" }\n          },\n          \"historical_pattern\": { \"type\": \"string\" }\n        }\n      }\n    }\n  }\n}",
+        "autoFix": true
+      },
+      "id": "edb16e12-eec8-4b3f-b597-24009a685323",
+      "name": "Risk Assessment JSON Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1296,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Description: Fetches a 7-day forecast including wind gusts, precipitation, and extreme heat codes. Use to detect typhoons, floods, or extreme heat that threaten transit, labour or route disruptions.\nJSON Schema:\n\nJSON\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"lat\": { \"type\": \"number\", \"description\": \"Latitude.\" },\n    \"lon\": { \"type\": \"number\", \"description\": \"Longitude.\" }\n  },\n  \"required\": [\"lat\", \"lon\"]\n}",
+        "url": "=https://api.open-meteo.com/v1/forecast?latitude={{ $fromAI('lat') }}&longitude={{ $fromAI('lon') }}&daily=weather_code,temperature_2m_max,apparent_temperature_max,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max&timezone=auto&forecast_days=7",
+        "options": {}
+      },
+      "id": "f6b9aa9d-f94e-449a-9f3e-7e101530f342",
+      "name": "Open-Meteo Weather Forecast API",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        352,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Description: Searches global news for specific supply chain disruptions (strikes, port delays). Use for verifying reported incidents with citable links.\n\nJSON Schema:\n\nJSON\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"city\": { \"type\": \"string\", \"description\": \"The city name to search for.\" },\n    \"country\": { \"type\": \"string\", \"description\": \"The country name to search for.\" }\n  },\n  \"required\": [\"city\", \"country\"]\n}",
+        "url": "=https://newsdata.io/api/1/latest?apikey={{YOUR_NEWSDATA_API_KEY}}&q=(\"{{ $fromAI('city') }}\" OR \"{{ $fromAI('country') }}\") AND (strike OR \"port delay\" OR shortage OR protest)&language=en&removeduplicate=1",
+        "options": {}
+      },
+      "id": "ffef3405-c142-4663-99e9-c66b21204e79",
+      "name": "NewsData.io Supply Chain News API",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        512,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Calculate risk scores (1-10 scale), compare dates/deadlines, calculate geographic distances from lat/long coordinates, or perform data transformations for supply chain risk quantification.",
+        "jsCode": "// Ensure inputs are treated as numbers\nconst geo = parseFloat($input.geographic) || 0;\nconst avail = parseFloat($input.availability) || 0;\nconst lt = parseFloat($input.lead_time) || 0;\nconst subst = parseFloat($input.substitutability) || 0;\nconst histAdj = parseFloat($input.historical_adjustment) || 0;\n\n// Weighted formula\nconst weightedScore = (geo * 0.2) + (avail * 0.3) + (lt * 0.3) + (subst * 0.2);\nconst finalScore = Math.min(10, weightedScore + histAdj);\n\nlet riskStatus = \"NOMINAL\";\nif (finalScore >= 7) riskStatus = \"CRITICAL\";\nelse if (finalScore >= 4) riskStatus = \"ELEVATED\";\n\n// THIS IS THE CRITICAL CHANGE FOR AGENT TOOLS:\n// Returning a single object inside the array so the Agent can \"read\" the keys\nreturn [\n  {\n    risk_score: parseFloat(finalScore.toFixed(1)),\n    status: riskStatus\n  }\n];"
+      },
+      "id": "04cb4a81-b4c1-4f3a-90c7-bd53b6801863",
+      "name": "Risk Calculation Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Query historical risk profiles for suppliers and locations to inform current risk assessments",
+        "memoryKey": {
+          "__rl": true,
+          "mode": "id",
+          "value": "historical_risk_patterns"
+        }
+      },
+      "id": "9c3a9f76-fb5e-4da8-99e5-1a203d5b55a1",
+      "name": "Historical Risk Profiles Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.3,
+      "position": [
+        752,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "3c6ab705-9180-47ff-871d-5d9e1731a557",
+      "name": "OpenAI Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        832,
+        1104
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.alert_id }}",
+        "contextWindowLength": 10
+      },
+      "id": "83219e88-ea55-4ebf-9af5-753fb7c8f18b",
+      "name": "Session Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.output.items_assessed[0].risk_score }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              },
+              "rightValue": 7
+            },
+            {
+              "id": "8a523256-5668-4d82-a0ea-5fcebe7dfb86",
+              "leftValue": "={{ $json.output.items_assessed[0].alert_from }}",
+              "rightValue": "agent_c",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9ca3ad70-affb-4dd4-a2eb-7bc99fc45e97",
+      "name": "Check if Risk Score >= 7 (HITL)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1664,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "requires_human_review",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "hitl_reason",
+              "value": "One or more components have risk score >= 7",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "187451d3-934c-4902-aca5-44b292fbdb2d",
+      "name": "Add HITL Flag for Manual Review",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1888,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "requires_human_review",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "auto_approved",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "48babfec-91d8-4da2-8053-ca49c71ae1ad",
+      "name": "Mark as Auto-Approved",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1888,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "{{YOUR_GOOGLE_SHEET_ID}}",
+          "mode": "list",
+          "cachedResultName": "ResilientSupplyAgentDatabase",
+          "cachedResultUrl": "{{YOUR_GOOGLE_SHEET_URL}}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 817157059,
+          "mode": "list",
+          "cachedResultName": "Risk Analysis Results",
+          "cachedResultUrl": "{{YOUR_GOOGLE_SHEET_URL}}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Risk ID": "={{ $json[\"output.items_assessed\"].risk_id }}",
+            "Alert ID": "={{ $json[\"output.items_assessed\"].parent_alert_id }}",
+            "Supplier ID": "={{ $json[\"output.items_assessed\"].supplier_id }}",
+            "Risk Score": "={{ $json[\"output.items_assessed\"].risk_score }}",
+            "Detailed Findings": "={{ $json[\"output.items_assessed\"].evidence_findings }}",
+            "Citations": "={{ $json[\"output.items_assessed\"].source_citations }}",
+            "Historical Pattern": "={{ $json[\"output.items_assessed\"].historical_pattern }}",
+            "Requires Human Review": "={{ $json.requires_human_review && $json.alert_from !== 'agent_c' }}",
+            "Component ID": "={{ $json[\"output.items_assessed\"].component_id }}",
+            "Risk Status": "={{ $json[\"output.items_assessed\"].risk_status }}",
+            "Geo Score": "={{ $json[\"output.items_assessed\"].dimensions.geographic }}",
+            "Avail Score": "={{ $json[\"output.items_assessed\"].dimensions.availability }}",
+            "Lead Time Score": "={{ $json[\"output.items_assessed\"].dimensions.lead_time }}",
+            "Subst Score": "={{ $json[\"output.items_assessed\"].dimensions.substitutability }}",
+            "Lead Time Delta": "='{{ $json[\"output.items_assessed\"].lead_time_delta }}",
+            "HITL Reason": "={{ $json.alert_from === 'agent_c' ? 'Auto-Approved (Backup)' : ($json.requires_human_review ? 'High Risk' : 'Auto-Approved') }}",
+            "Timestamp": "={{ $now }}",
+            "Final Approval": "={{ $json[\"output.items_assessed\"].risk_score >= 7 || $json[\"output.items_assessed\"].alert_from === 'agent_c' ? 'YES' : 'Pending' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Risk ID",
+              "displayName": "Risk ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Alert ID",
+              "displayName": "Alert ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Supplier ID",
+              "displayName": "Supplier ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Component ID",
+              "displayName": "Component ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Risk Score",
+              "displayName": "Risk Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Risk Status",
+              "displayName": "Risk Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Geo Score",
+              "displayName": "Geo Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Avail Score",
+              "displayName": "Avail Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Time Score",
+              "displayName": "Lead Time Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Subst Score",
+              "displayName": "Subst Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Detailed Findings",
+              "displayName": "Detailed Findings",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Citations",
+              "displayName": "Citations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Historical Pattern",
+              "displayName": "Historical Pattern",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead Time Delta",
+              "displayName": "Lead Time Delta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Requires Human Review",
+              "displayName": "Requires Human Review",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "HITL Reason",
+              "displayName": "HITL Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Reviewer Comments",
+              "displayName": "Reviewer Comments",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Final Approval",
+              "displayName": "Final Approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2336,
+        880
+      ],
+      "id": "888940c3-c4fb-4f46-b859-161a14b9257e",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "=output.items_assessed",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2112,
+        880
+      ],
+      "id": "1bc9d687-f3de-49f5-ad8d-338bee50d8bf",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Description: Monitors global media themes for protests, civil unrest, and strikes. Use for early warning signs of social instability.\nJSON Schema:\n\nJSON:\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"country\": { \"type\": \"string\", \"description\": \"The name of the country to monitor.\" }\n  },\n  \"required\": [\"country\"]\n}",
+        "url": "=https://api.gdeltproject.org/api/v2/doc/doc?query=(tone<-2 OR theme:STRIKE OR theme:PROTEST OR \"supply chain disruption\") sourcecountry:{{ $fromAI('country') }}&mode=artlist&maxrecords=10&format=json&sort=DateDesc",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 15000
+            }
+          }
+        }
+      },
+      "id": "610d16d9-a055-4ba9-a7eb-f2f9c063331f",
+      "name": "GDELT Geopolitical Events API (Resilient)",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        1008,
+        960
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Description: Detects active fires and thermal anomalies using satellite data. Use this to check for physical threats to factory infrastructure. Pass the bounding_box string provided in the input.\n\nJSON Schema:\n\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"bounding_box\": { \"type\": \"string\", \"description\": \"The west,south,east,north coordinate string provided in the input.\" }\n  },\n  \"required\": [\"bounding_box\"]\n}",
+        "url": "=https://firms.modaps.eosdis.nasa.gov/api/area/csv/{{YOUR_NASA_FIRMS_API_KEY}}/VIIRS_SNPP_NRT/{{ $fromAI('bounding_box') }}/1",
+        "options": {}
+      },
+      "id": "4a2feff6-3576-4588-a021-e2d91c62d1ad",
+      "name": "NASA FIRMS Fire Data API (Resilient)",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        1168,
+        960
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.4-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5.4-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1376,
+        1104
+      ],
+      "id": "d08d128d-9c92-4301-a40d-cf364089b916",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "{{YOUR_GOOGLE_SHEET_ID}}",
+          "mode": "list",
+          "cachedResultName": "ResilientSupplyAgentDatabase",
+          "cachedResultUrl": "{{YOUR_GOOGLE_SHEET_URL}}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 817157059,
+          "mode": "list",
+          "cachedResultName": "Risk Analysis Results",
+          "cachedResultUrl": "{{YOUR_GOOGLE_SHEET_URL}}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -96,
+        4752
+      ],
+      "id": "f9161e4b-6e5a-47e3-be2b-b2989097e3e5",
+      "name": "Get row(s) from Risk analysis result",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\nconst { row_number, ...data } = item.json;\nreturn { json: data };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        4752
+      ],
+      "id": "8dcb6f86-a2e6-4189-a5bd-ccd0ea8b769d",
+      "name": "Suppress row number 11"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().map(item => item.json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        352,
+        4752
+      ],
+      "id": "87a651f8-207d-492d-b758-26b628940e4a",
+      "name": "Respond to Webhook7"
+    },
+    {
+      "parameters": {
+        "path": "f8e8c147-cf4d-4216-9b35-96c9dda5837b",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -320,
+        4752
+      ],
+      "id": "a24374ab-364b-4963-a1d4-9f197e2311ae",
+      "name": "GET/Risk Analysis Results",
+      "webhookId": "f8e8c147-cf4d-4216-9b35-96c9dda5837b"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": true
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -112,
+        880
+      ],
+      "id": "3ffaee3b-0e00-4c02-979d-4c4d4151696f",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyWeek"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "{{YOUR_GOOGLE_SHEET_ID}}",
+          "mode": "list",
+          "cachedResultName": "ResilientSupplyAgentDatabase",
+          "cachedResultUrl": "{{YOUR_GOOGLE_SHEET_URL}}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1413433230,
+          "mode": "list",
+          "cachedResultName": "Test_Alerts",
+          "cachedResultUrl": "{{YOUR_GOOGLE_SHEET_URL}}"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        880
+      ],
+      "id": "4272f28a-98df-4b2f-bd92-1b6d68cc011d",
+      "name": "Google Sheets Trigger1",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI GPT-4 Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Resilient Supply Scout Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Assessment JSON Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Resilient Supply Scout Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open-Meteo Weather Forecast API": {
+      "ai_tool": [
+        [
+          {
+            "node": "Resilient Supply Scout Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NewsData.io Supply Chain News API": {
+      "ai_tool": [
+        [
+          {
+            "node": "Resilient Supply Scout Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Calculation Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Resilient Supply Scout Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Historical Risk Profiles Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "Resilient Supply Scout Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Historical Risk Profiles Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Session Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Resilient Supply Scout Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resilient Supply Scout Agent": {
+      "main": [
+        [
+          {
+            "node": "Check if Risk Score >= 7 (HITL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Risk Score >= 7 (HITL)": {
+      "main": [
+        [
+          {
+            "node": "Add HITL Flag for Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark as Auto-Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add HITL Flag for Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Auto-Approved": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GDELT Geopolitical Events API (Resilient)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Resilient Supply Scout Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NASA FIRMS Fire Data API (Resilient)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Resilient Supply Scout Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Risk Assessment JSON Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) from Risk analysis result": {
+      "main": [
+        [
+          {
+            "node": "Suppress row number 11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suppress row number 11": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET/Risk Analysis Results": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) from Risk analysis result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Resilient Supply Scout Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "bb37d1ce-8d7c-4423-b489-c74f4adcfa09",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e2ba271a75c2e4d37e21fe701db361e52da9f9ddd74617e172166c2ba97e270b"
+  },
+  "id": "VkJ4ZtIYfKsJ0Byo",
+  "tags": []
+}
