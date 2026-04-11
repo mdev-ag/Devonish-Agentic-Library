@@ -1,0 +1,67 @@
+{
+  "Medical": {
+    "id": "PROTO-MED-001",
+    "priority_tier": "Critical",
+    "title": "Medical Emergency Response Protocol",
+    "immediate_actions": [
+      "Call 911 immediately if the individual is unresponsive, not breathing, or experiencing cardiac arrest.",
+      "Dispatch the nearest trained First Aid/AED-certified staff member to the scene.",
+      "Clear a 10-foot perimeter around the individual — restrict bystander access.",
+      "Do NOT move the individual unless they are in immediate physical danger.",
+      "Assign one staff member solely to guide EMS personnel to the scene upon arrival."
+    ],
+    "communication_script": "We have a medical situation being handled by trained staff. Emergency services have been contacted. Please remain calm and stay in your designated area. Your safety is our priority.",
+    "legal_notes": [
+      "Document time of incident, first contact, and EMS arrival in the incident log.",
+      "Do not disclose the nature of the medical incident to other patrons (HIPAA adjacency).",
+      "Obtain witness contact info only if voluntarily offered — do not coerce."
+    ],
+    "escalation_owner": "Head of Security / Event Manager",
+    "resolution_broadcast": "The situation has been resolved. Emergency services have been engaged. We appreciate your patience and cooperation."
+  },
+  "Conflict": {
+    "id": "PROTO-CON-002",
+    "priority_tier": "Urgent",
+    "title": "Physical or Verbal Conflict De-escalation Protocol",
+    "immediate_actions": [
+      "Two staff members approach — one primary speaker, one secondary observer. Never solo.",
+      "Use calm, non-threatening body language: open palms, neutral stance, eye contact.",
+      "Verbally separate parties: 'I need both of you to step apart for me, right now.'",
+      "If physical contact has occurred: separate the individuals to opposite ends of the venue.",
+      "If de-escalation fails within 90 seconds: initiate removal of the aggressor from the premises.",
+      "Contact local law enforcement if weapons are suspected or physical injury has occurred."
+    ],
+    "communication_script": "We are aware of a situation and our team is actively managing it. There is no threat to the general event. Please continue enjoying the evening.",
+    "legal_notes": [
+      "Document all verbal warnings given before physical removal.",
+      "If an individual is removed, log: time, reason, staff name, and witness present.",
+      "Do not use excessive force — staff are not law enforcement.",
+      "If injury occurs, treat as a Medical incident and switch to PROTO-MED-001."
+    ],
+    "escalation_owner": "Head of Security",
+    "resolution_broadcast": "The situation has been de-escalated and resolved. The event is continuing as planned. Thank you for your patience."
+  },
+  "Fire": {
+    "id": "PROTO-FIRE-003",
+    "priority_tier": "Critical",
+    "title": "Fire & Evacuation Protocol",
+    "immediate_actions": [
+      "Activate the building fire alarm immediately.",
+      "Call 911 — report the venue address and number of occupants.",
+      "Initiate full venue evacuation via all marked exits — do not use elevators.",
+      "Station staff at ALL emergency exits to direct flow and prevent re-entry.",
+      "Designated staff member performs a final sweep of restrooms, back-of-house, and VIP areas.",
+      "All staff and patrons assemble at the pre-designated muster point (confirm in venue config).",
+      "Do NOT re-enter the venue under any circumstances until cleared by Fire Department."
+    ],
+    "communication_script": "Attention everyone: for your safety, we are asking all guests to calmly make their way to the nearest exit. Staff are positioned at all exits to assist you. Please move quickly and calmly.",
+    "legal_notes": [
+      "Full evacuation is mandatory — partial evacuation is not compliant with fire codes.",
+      "Document: time alarm activated, time of full evacuation, any injuries, fire department arrival time.",
+      "Event organizer assumes liability if re-entry is permitted before fire department clearance.",
+      "Collect headcount at the muster point and report to incident commander."
+    ],
+    "escalation_owner": "Event Director / Fire Warden",
+    "resolution_broadcast": "The venue has been cleared by emergency services. We are assessing the situation. Further updates will follow. Thank you for your cooperation and safety."
+  }
+}

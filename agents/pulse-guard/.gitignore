@@ -1,0 +1,24 @@
+# Environment — never commit secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Logs — runtime output, not source
+docs/performance-audit.log
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
