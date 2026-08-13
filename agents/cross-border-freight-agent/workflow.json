@@ -1,0 +1,1096 @@
+{
+  "name": "Logistics Company Workflow Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "hour": null
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "{{SCHEDULE_SOURCE_FOLDER_ID}}",
+          "mode": "list",
+          "cachedResultName": "Monthly Shipping Schedules",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/{{SCHEDULE_SOURCE_FOLDER_ID}}"
+        },
+        "event": "fileCreated",
+        "options": {
+          "fileType": "all"
+        }
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        1520
+      ],
+      "id": "44dad451-d8e5-45f7-8bd0-cddec9aac0d2",
+      "name": "Google Drive Trigger1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=[SYSTEM INSTRUCTION: You are a high-precision Logistics Data Clerk. Your sole responsibility is the digital ingestion of raw shipping schedules into a structured staging format for {{CLIENT}}.\n\nTEXT TO ANALYZE: {{ $json.text }}\n\n### STATIC ROUTE CONSTANTS (ENFORCED):\nFor EVERY shipment extracted, you must apply these static values regardless of the source text:\n- client: \"{{END_CUSTOMER}}\"\n- origin: \"{{ORIGIN_LOCATION}}\"\n- destination: \"{{DESTINATION_LOCATION}}\"\n\n### CORE TASK:\nExtract EVERY shipment entry found in the text, from the first line to the last. Do not skip any entries.\n\n### DATA GUARDRAILS:\n1. ENTITY ISOLATION: For every shipment, capture the following dynamic fields with 100% character accuracy:\n   - pickup_date: The ETA or Pickup date.\n   - delivery_date: The ETD or Delivery date.\n   - shipment_details: A nested array of objects. You MUST separate the 'SO' (Shipment Order) from the 'PC' (Purchase Order) into their own distinct keys.\n     Example: [{\"so\": \"SO330919\", \"pc\": \"PC26-10137\"}, {\"so\": \"SO330920\", \"pc\": \"PC26-10138\"}]\n\n2. GROUPING LOGIC: Treat each distinct section or line-break-separated block in the PDF as one unique truckload. Ensure all SO/PC pairs within that block stay grouped in a single array.\n\n3. NO BUSINESS LOGIC: \n   - DO NOT generate new {{CLIENT}} reference numbers.\n   - DO NOT draft emails or select carriers.\n   - DO NOT filter by date; if a shipment is in the text, it must be in the output.\n\n### OUTPUT FORMAT:\nProvide ONLY a valid JSON array. Each object in the array must contain the static constants (client, origin, destination) and the extracted dynamic fields. \n\nExample Item:\n{\n  \"client\": \"{{END_CUSTOMER}}\",\n  \"origin\": \"{{ORIGIN_LOCATION}}\",\n  \"destination\": \"{{DESTINATION_LOCATION}}\",\n  \"pickup_date\": \"03/16/2026\",\n  \"delivery_date\": \"03/21/2026\",\n  \"shipment_details\": [\n    {\"so\": \"SO330919\", \"pc\": \"PC26-10137\"},\n    {\"so\": \"SO330920\", \"pc\": \"PC26-10138\"}\n  ]\n}]",
+        "options": {
+          "passthroughBinaryImages": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        144,
+        1520
+      ],
+      "id": "eef45362-26e8-4671-9c3a-f6c8049ec5dd",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "responseCode": 302,
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Location",
+                "value": "https://drive.google.com/drive/u/0/folders/{{BOL_OUTPUT_FOLDER_ID}}"
+              }
+            ]
+          },
+          "webhookSuffix": ""
+        }
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1616,
+        992
+      ],
+      "id": "2e3035e9-0071-45aa-9ac7-7de02819e75a",
+      "name": "Wait1",
+      "webhookId": "8c111109-28ba-4d33-af27-835d6924140a"
+    },
+    {
+      "parameters": {
+        "sendTo": "{{ALERT_EMAIL}}",
+        "subject": "=🚀 Action Required: Book Truck for {{ $json.pickup_date }} (Ref: {{ $json.new_client_reference }})",
+        "message": "=<h3>🚀 Booking Window Opened: {{ $json.appended_pickup_date[0] }}</h3> \n\n<p>Email drafts have been created and are ready to send to carriers for the upcoming shipments on <b>{{ $json.appended_pickup_date[0] }}</b>.</p>\n\n<p><b>{{CLIENT}} Reference:</b> {{ $json.new_client_reference }}<br>\n<b>Shipments included:</b><br>\n{{ $json.appended_so_list[0] }}</p>\n\n<p>Once you have received confirmation from a carrier in Gmail, click their name below to select the winner and automatically generate the Letter of Instruction (LOI):</p>\n\n<div style=\"margin-top: 20px;\">\n  <a href=\"{{ $execution.resumeUrl }}?carrier={{CARRIER_C}}&ref={{ $json.new_client_reference }}\" \n     style=\"background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;\">\n     Approve {{CARRIER_C}} ($3,200)\n  </a>\n  <br><br>\n  \n  <a href=\"{{ $execution.resumeUrl }}?carrier={{CARRIER_A}}&ref={{ $json.new_client_reference }}\" \n     style=\"background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;\">\n     Approve {{CARRIER_A}} ($3,250)\n  </a>\n  <br><br>\n  \n  <a href=\"{{ $execution.resumeUrl }}?carrier={{CARRIER_B}}&ref={{ $json.new_client_reference }}\" \n     style=\"background-color: #ff8c00; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;\">\n     Approve {{CARRIER_B}} ($3,200)\n  </a>\n</div>\n\n<p style=\"margin-top: 20px; color: #666; font-size: 12px;\">\n  <i>Note: This selection will finalize booking for {{ $json.new_client_reference }} and generate the official LOI.</i>\n</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        992
+      ],
+      "id": "702ccb67-3ac2-4c4b-850c-db7923ed935c",
+      "name": "Send a message1",
+      "webhookId": "7c8469c1-9e44-4851-ba81-160c5c2f8995",
+      "executeOnce": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $node[\"Google Drive Trigger1\"].json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -304,
+        1520
+      ],
+      "id": "10fa5547-6f58-4b38-9da6-71483a787527",
+      "name": "Download file1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        1744
+      ],
+      "id": "d1aa34d7-14a5-497a-be0b-64e7d7a0687f",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -80,
+        1520
+      ],
+      "id": "06ce8331-0b0e-4622-8759-af09858edf32",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.email_subject }}",
+        "emailType": "html",
+        "message": "={{ $json.email_body }}",
+        "options": {
+          "ccList": "={{ $json.cc_email }}",
+          "sendTo": "={{ $json.carrier_email }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1616,
+        1184
+      ],
+      "id": "0ae6bd93-9da1-4e76-9f2a-4ef1d841fc01",
+      "name": "Draft Creation1",
+      "webhookId": "297c8c50-cccc-4839-ba93-224b692e86aa",
+      "alwaysOutputData": false,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7719f674-0bba-4783-8279-4ddbeee5af2e",
+              "name": "templateID",
+              "value": "={{    ({     \"{{CARRIER_C}}\": \"{{CARRIER_C_BOL_TEMPLATE_ID}}\",     \"{{CARRIER_B}}\": \"{{CARRIER_B_BOL_TEMPLATE_ID}}\",     \"{{CARRIER_A}}\": \"{{CARRIER_A_BOL_TEMPLATE_ID}}\"   })[$json.query.carrier.toLowerCase()] \n\n \"DEFAULT_ID_IF_NOT_FOUND\"  }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1840,
+        992
+      ],
+      "id": "2789f1f1-6de1-4e30-a5e5-f95169296108",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.templateID }}",
+          "mode": "id"
+        },
+        "name": "=CI {{ $json.query.carrier.toUpperCase() }} {{ $json.query.ref }} {{END_CUSTOMER}} {{ORIGIN_LOCATION}}-{{DESTINATION_LOCATION}}",
+        "sameFolder": false,
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "{{BOL_OUTPUT_FOLDER_ID}}",
+          "mode": "list",
+          "cachedResultName": "Letter of Instruction (Generated)",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/{{BOL_OUTPUT_FOLDER_ID}}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2064,
+        992
+      ],
+      "id": "ac980097-1ee8-4916-8f0d-3b04434a47b8",
+      "name": "Copy file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "BOL",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": 2,
+            "PickupDate": "={{ $('Code in JavaScript1').item.json.pickup_date }}",
+            "ShipperRef": "={{ $('Code in JavaScript1').item.json.appended_so_list }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "PickupDate",
+              "displayName": "PickupDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ShipperRef",
+              "displayName": "ShipperRef",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "locationDefine": {
+            "values": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2288,
+        992
+      ],
+      "id": "60dc76d3-2431-4381-9e97-f740cce438d4",
+      "name": "Update row in sheet2",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $node[\"Copy file1\"].json.id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "BOL",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "MM/DD/YEAR": "={{ $('Code in JavaScript1').item.json.delivery_date }}",
+            "{{CLIENT}}'S REFERENCE": "={{ $('Code in JavaScript1').item.json.new_client_reference }}",
+            "row_number": 4
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Versión: 01",
+              "displayName": "Versión: 01",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ETA",
+              "displayName": "ETA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "MM/DD/YEAR",
+              "displayName": "MM/DD/YEAR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LOAD ID#",
+              "displayName": "LOAD ID#",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "{{CLIENT}}'S REFERENCE",
+              "displayName": "{{CLIENT}}'S REFERENCE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "locationDefine": {
+            "values": {
+              "headerRow": 4,
+              "firstDataRow": 5
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2512,
+        992
+      ],
+      "id": "e8dd32af-f794-49a6-b685-6a17f9fe33c6",
+      "name": "Update row in sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Updated Flow"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        1328
+      ],
+      "id": "7b7cb782-e2df-4ab8-857a-3daac9e7adc8",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "{{STAGING_SHEET_ID}}",
+          "mode": "list",
+          "cachedResultName": "MOVIMIENTOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{STAGING_SHEET_ID}}/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759245454,
+          "mode": "list",
+          "cachedResultName": "Staging_Shipments_PHP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{STAGING_SHEET_ID}}/edit#gid=1759245454"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "=Pending",
+            "Client": "={{ $json.client }}",
+            "Origin": "={{ $json.origin }}",
+            "Destination": "={{ $json.destination }}",
+            "Pickup Date": "={{ $json.pickup_date }}",
+            "Delivery Date": "={{ $json.delivery_date }}",
+            "Shipment_Orders": "={{ $json.shipment_details.map(item => item.so).join(', ') }}",
+            "Internal_Metadata": "={{ JSON.stringify($json.shipment_details) }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Client",
+              "displayName": "Client",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Origin",
+              "displayName": "Origin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Destination",
+              "displayName": "Destination",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Pickup Date",
+              "displayName": "Pickup Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Delivery Date",
+              "displayName": "Delivery Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Shipment_Orders",
+              "displayName": "Shipment_Orders",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Internal_Metadata",
+              "displayName": "Internal_Metadata",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        1520
+      ],
+      "id": "d629e843-1f11-4b7e-8149-2998da3433fd",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// This cleans the AI's markdown formatting and turns the string into real JSON objects\nconst rawOutput = $input.item.json.output;\nconst cleanJson = rawOutput.replace(/```json|```/g, \"\").trim();\nreturn JSON.parse(cleanJson);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        1520
+      ],
+      "id": "c8cb1503-50a7-4316-ab88-dd9a03df50af",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -528,
+        1088
+      ],
+      "id": "0fa02680-f63e-4348-89fd-325c327cf7cf",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "{{STAGING_SHEET_ID}}",
+          "mode": "list",
+          "cachedResultName": "MOVIMIENTOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{STAGING_SHEET_ID}}/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759245454,
+          "mode": "list",
+          "cachedResultName": "Staging_Shipments_PHP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{STAGING_SHEET_ID}}/edit#gid=1759245454"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Status",
+              "lookupValue": "Pending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -304,
+        1088
+      ],
+      "id": "ce89b15c-8738-4c5c-b6bb-5904c45f4706",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// This node filters for shipments exactly 3 business days away\nconst today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nfunction addBusinessDays(date, days) {\n  let result = new Date(date);\n  let added = 0;\n  while (added < days) {\n    result.setDate(result.getDate() + 1);\n    if (result.getDay() !== 0 && result.getDay() !== 6) { // 0=Sun, 6=Sat\n      added++;\n    }\n  }\n  return result;\n}\n\nconst targetDate = addBusinessDays(today, 3);\nconst targetString = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD\n\n// Filter the incoming items from Google Sheets\nreturn $input.all().filter(item => {\n  const rawDate = item.json[\"Pickup Date\"];\n  \n  // GUARD 1: Skip if the row is empty or doesn't have a date\n  if (!rawDate || rawDate.toString().trim() === \"\") {\n    return false;\n  }\n\n  const pickupDate = new Date(rawDate);\n  \n  // GUARD 2: Skip if the date format is corrupted/invalid\n  if (isNaN(pickupDate.getTime())) {\n    return false;\n  }\n\n  const pickupString = pickupDate.toISOString().split('T')[0];\n  return pickupString === targetString;\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        1088
+      ],
+      "id": "09eb758e-2ff0-4403-8586-b89c5b5a3a4c",
+      "name": "3-Business-Day Logic"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "{{STAGING_SHEET_ID}}",
+          "mode": "list",
+          "cachedResultName": "MOVIMIENTOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{STAGING_SHEET_ID}}/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1538331551,
+          "mode": "list",
+          "cachedResultName": "MOVIMIENTOS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{STAGING_SHEET_ID}}/edit#gid=1538331551"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A2500:Z3000"
+            }
+          },
+          "returnFirstMatch": false
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        1088
+      ],
+      "id": "11f3d3db-e926-44d3-b902-4463f61c92c8",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Optimized Reference Generator\n * Finds the highest IN number from the provided sheet rows.\n */\n\nconst recentRows = $input.all(); \nconst currentShipment = $node[\"3-Business-Day Logic\"].json;\n\nlet maxNumber = 0;\n\nrecentRows.forEach(item => {\n  const row = item.json;\n  // Look through every single cell in the row just in case\n  for (let key in row) {\n    const val = row[key];\n    if (val && typeof val === 'string' && val.includes('IN')) {\n      const match = val.match(/IN(\\d+)-/);\n      if (match) {\n        const num = parseInt(match[1]);\n        if (num > maxNumber) maxNumber = num;\n      }\n    }\n  }\n});\n\n// If for some reason it still can't find it, we default to the last known \n// but this logic should now catch IN2627 easily.\nconst nextNumber = maxNumber > 0 ? maxNumber + 1 : 2628; \n\nconst rawDate = currentShipment[\"Pickup Date\"] || currentShipment[\"pickup_date\"];\nconst pickupDate = new Date(rawDate);\nconst mm = String(pickupDate.getMonth() + 1).padStart(2, '0');\nconst dd = String(pickupDate.getDate()).padStart(2, '0');\nconst yyyy = pickupDate.getFullYear();\n\nconst newReference = `IN${String(nextNumber).padStart(4, '0')}-${mm}${dd}${yyyy}`;\n\nreturn {\n  ...currentShipment,\n  new_client_reference: newReference,\n  next_sequence_number: nextNumber\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        1088
+      ],
+      "id": "9d93a517-23a1-49ae-a00e-c7be2e33888f",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=[SYSTEM INSTRUCTION: You are the Senior Logistics Coordinator at {{CLIENT}}. Your mission is to generate warm, professional, and consistent carrier outreach drafts for upcoming shipments.\n\nROLE\n\nYou act as a communication bridge between operations and our carriers ({{CARRIER_A}}, {{CARRIER_B}}, and {{CARRIER_C}}). Your goal is to provide them with the necessary shipment details and request availability in a standardized way.\n\nINPUT DATA MAPPING\n\nYou will receive a shipment object. You must extract and map these values precisely:\n\nRef: {{ $json[\"new_client_reference\"] }}\n\nCarrier: {{ $json[\"carrier_name\"] }}\n\nCarrier Email: {{ $json[\"carrier_email\"] }}\n\nCC Email: {{ $json[\"cc_email\"] }}\n\nSOs: {{ $json[\"so_list\"] }}\n\nPickup Date (ETD): {{ $json[\"Pickup Date\"] || $json[\"pickup_date\"] || $json[\"ETA\"] }}\n\nDelivery Date (ETA): {{ $json[\"Delivery Date\"] || $json[\"delivery_date\"] || $json[\"Vence\"] }}\n\nOrigin: {{ $json[\"Origin\"] || $json[\"origin\"] }}\n\nDestination: {{ $json[\"Destination\"] || $json[\"destination\"] }}\n\nClient: {{ $json[\"Client\"] || $json[\"client\"] }}\n\nGUARDRAILS\n\nHTML ONLY: You MUST use <b> for headers and <br> for line breaks in the email_body.\n\nDATE INTEGRITY: You MUST include a dedicated pickup_date and delivery_date field in the root of your JSON.\n\nOUTPUT FORMAT: Return ONLY the JSON object. Do not include markdown code blocks (```json) or any conversational text.\n\nOUTPUT JSON STRUCTURE\n\n{\n\"reference_id\": \"{{ $json[\"new_client_reference\"] }}\",\n\"carrier_email\": \"{{ $json[\"carrier_email\"] }}\",\n\"cc_email\": \"{{ $json[\"cc_email\"] }}\",\n\"carrier_name\": \"{{ $json[\"carrier_name\"] }}\",\n\"pickup_date\": \"[EXTRACTED PICKUP DATE]\",\n\"delivery_date\": \"[EXTRACTED DELIVERY DATE OR EMPTY STRING]\",\n\"email_subject\": \"Re: {{ $json[\"new_client_reference\"] }} / [PICKUP DATE] / {{ $json[\"Origin\"] }} - {{ $json[\"Destination\"] }}\",\n\"email_body\": \"Hello {{ $json[\"carrier_name\"] }} Team, \n\n\n\n\n\nWe have an upcoming shipment... [STAMPED BODY] ...\",\n\"loi_metadata\": {\n\"client\": \"{{ $json[\"Client\"] || $json[\"client\"] }}\",\n\"origin\": \"{{ $json[\"Origin\"] }}\",\n\"destination\": \"{{ $json[\"Destination\"] }}\",\n\"ref\": \"{{ $json[\"new_client_reference\"] }}\",\n\"orders\": \"{{ $json[\"so_list\"] }}\",\n\"carrier\": \"{{ $json[\"carrier_name\"] }}\"\n}\n}\n]",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        816,
+        1088
+      ],
+      "id": "214a9f94-7a4f-4cab-8d19-c3e35396b24f",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        1312
+      ],
+      "id": "d95dc848-885f-4dd5-abb8-8173daed877c",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_CREDENTIAL_ID}}",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Setup Carrier Contacts (Data remains static for precision)\nconst carriers = [\n    { name: \"{{CARRIER_A}}\", email: \"{{CARRIER_A_EMAIL}}\" },\n    { name: \"{{CARRIER_B}}\", email: \"{{CARRIER_B_EMAILS}}\" },\n    { name: \"{{CARRIER_C}}\", email: \"{{CARRIER_C_EMAILS}}\" }\n];\n\n// 2. Capture the single incoming shipment (The truck)\nconst truck = $json;\n\n// 3. Precise Field Extraction & Cleanup\n// We ensure so_list is always a string and handle different possible key names\nconst cleanSOList = (truck.Shipment_Orders || truck.so_list || truck.Referencia || \"\").toString().trim();\n\n// 4. Scalable Multiplexing with Safety Mapping\nreturn carriers.map(carrier => {\n    return {\n        json: {\n            // Keep all original metadata (Pickup Date, Row ID, etc.)\n            ...truck, \n            \n            // Explicit Carrier Assignments\n            carrier_name: carrier.name,\n            carrier_email: carrier.email,\n            cc_email: \"{{OPS_CONTACT_EMAIL}}\",\n            \n            // Overwrite so_list with our cleaned version to prevent Agent errors\n            so_list: cleanSOList,\n            \n            // Add a timestamp for auditability \n            processed_at: new Date().toISOString()\n        }\n    };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        1088
+      ],
+      "id": "d7b9bcd3-51a1-4e61-9af9-de3b765498a4",
+      "name": "Multiplexer Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * This node parses the AI Agent's JSON string and merges it with \n * the carrier metadata (emails/names) from the Multiplexer.\n * It also generates a summary item for the Notification node \n * and a 'full_shipment_data' object to survive the Wait node.\n */\n\nconst results = [];\nconst inputItems = $input.all();\n\n// 1. HARD-CODED EMAIL LOOKUP (Safety Net)\nconst emailLookup = {\n  \"{{CARRIER_A}}\": \"{{CARRIER_A_EMAIL}}\",\n  \"{{CARRIER_B}}\": \"{{CARRIER_B_EMAILS}}\",\n  \"{{CARRIER_C}}\": \"{{CARRIER_C_EMAILS}}\"\n};\n\n// 2. ATTEMPT TO FIND MULTIPLEXER NODE DATA\nlet multiplexerItems = [];\nconst nodeNamesToTry = [\"Code in JavaScript1\", \"Increment & Multiplex Logic\", \"Multiplexer\", \"Code in JavaScript3\", \"Code\"];\n\nfor (const name of nodeNamesToTry) {\n  try {\n    multiplexerItems = $node[name].all();\n    if (multiplexerItems.length > 0) break;\n  } catch (e) {\n    continue;\n  }\n}\n\n// 3. PROCESS EACH AGENT OUTPUT\nfor (let i = 0; i < inputItems.length; i++) {\n  const item = inputItems[i];\n  let aiData = {};\n  \n  try {\n    if (typeof item.json.output === 'string') {\n      const cleanOutput = item.json.output.replace(/```json/g, \"\").replace(/```/g, \"\").trim();\n      aiData = JSON.parse(cleanOutput);\n    } else {\n      aiData = item.json.output || {};\n    }\n\n    const multiplexerData = (multiplexerItems[i] && multiplexerItems[i].json) ? multiplexerItems[i].json : {};\n\n    // 4. RESOLVE CARRIER NAME\n    const carrierName = aiData.carrier_name || aiData.carrier_targeted || multiplexerData.carrier_name || \"Unknown Carrier\";\n    const lookupKey = carrierName.toLowerCase().trim();\n\n    // 5. ENHANCED DATE RESOLUTION\n    let resolvedPickupDate = multiplexerData[\"Pickup Date\"] || multiplexerData[\"pickup_date\"] || multiplexerData[\"ETA\"] || multiplexerData[\"Fecha\"] || aiData.pickup_date || \"\";\n    let resolvedDeliveryDate = multiplexerData[\"Delivery Date\"] || multiplexerData[\"delivery_date\"] || multiplexerData[\"Vence\"] || multiplexerData[\"Factura\"] || aiData.delivery_date || \"\";\n\n    // Fallback Extraction Logic\n    if (!resolvedPickupDate || !resolvedDeliveryDate) {\n        const dateRegex = /(\\d{1,2}\\/\\d{1,2}\\/\\d{4})/g;\n        const textToScan = `${aiData.email_subject || \"\"} ${aiData.email_body || \"\"}`;\n        const foundDates = textToScan.match(dateRegex) || [];\n        \n        // Use a Set to get unique date strings only\n        const uniqueDates = [...new Set(foundDates)];\n\n        if (!resolvedPickupDate && uniqueDates.length > 0) {\n          resolvedPickupDate = uniqueDates[0];\n        }\n        \n        // Only assign delivery date if we found a second, DIFFERENT date\n        if (!resolvedDeliveryDate && uniqueDates.length > 1) {\n          resolvedDeliveryDate = uniqueDates[1];\n        }\n    }\n\n    // 6. FINAL DATA MERGE\n    const baseOutput = {\n        is_draftable: true, \n        email_subject: aiData.email_subject || `Re: ${multiplexerData.new_client_reference || \"Shipment\"}`,\n        email_body: aiData.email_body || \"Body generation failed.\",\n        loi_metadata: aiData.loi_metadata || {},\n        carrier_email: aiData.carrier_email || multiplexerData.carrier_email || emailLookup[lookupKey] || \"\",\n        cc_email: aiData.cc_email || multiplexerData.cc_email || \"{{OPS_CONTACT_EMAIL}}\",\n        carrier_name: carrierName,\n        new_client_reference: aiData.reference_id || multiplexerData.new_client_reference,\n        pickup_date: resolvedPickupDate,\n        delivery_date: resolvedDeliveryDate,\n        row_number: multiplexerData.row_number || item.json.row_number,\n        \n        // --- DATA BUNDLE FOR THE SPREADSHEET ---\n        full_shipment_data: {\n          origin: multiplexerData[\"Origin\"] || aiData.loi_metadata?.origin || \"\",\n          destination: multiplexerData[\"Destination\"] || aiData.loi_metadata?.destination || \"\",\n          client: multiplexerData[\"Client\"] || aiData.loi_metadata?.client || \"{{END_CUSTOMER}}\",\n          so_list: multiplexerData[\"Shipment_Orders\"] || aiData.loi_metadata?.orders || multiplexerData[\"so_list\"] || \"\",\n          pickup_date: resolvedPickupDate,\n          delivery_date: resolvedDeliveryDate\n        }\n    };\n\n    results.push({ json: baseOutput });\n\n  } catch (error) {\n    console.error(`Parsing Error on item ${i}:`, error.message);\n    const fallback = (multiplexerItems[i] && multiplexerItems[i].json) ? multiplexerItems[i].json : {};\n    results.push({ json: { ...fallback, error: \"AI Parsing Failed\" } });\n  }\n}\n\n// 7. CREATE SUMMARY OBJECT (Prepend to list)\nif (results.length > 0) {\n  const summary = {\n    json: {\n      is_summary: true,\n      is_draftable: false, \n      new_client_reference: results[0].json.new_client_reference,\n      pickup_date: results[0].json.pickup_date,\n      delivery_date: results[0].json.delivery_date,\n      appended_pickup_date: [results[0].json.pickup_date], \n      appended_so_list: [results[0].json.full_shipment_data.so_list],\n      carriers_count: results.length,\n      full_shipment_data: results[0].json.full_shipment_data\n    }\n  };\n  \n  return [summary, ...results];\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        1088
+      ],
+      "id": "d2648f29-2d02-407f-aa75-431269e76f79",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "32aebf80-2dee-45a9-8d80-0ffc13858fe2",
+              "leftValue": "={{ $json.is_draftable }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1392,
+        1184
+      ],
+      "id": "fbfc8fb7-9946-4afd-a8b1-19f555fa6899",
+      "name": "Only Carrier Drafts"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Download file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file1": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Creation1": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Copy file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy file1": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "3-Business-Day Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3-Business-Day Logic": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Multiplexer Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Multiplexer Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Only Carrier Drafts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Only Carrier Drafts": {
+      "main": [
+        [
+          {
+            "node": "Draft Creation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "57521fdd-19c2-4336-b97b-af4fc2a2ddef",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "{{N8N_INSTANCE_ID}}"
+  },
+  "nodeGroups": [],
+  "id": "Tp4wvsC6VwoZpZm1",
+  "tags": []
+}
