@@ -39,6 +39,7 @@
 | **Data Source** | Google Calendar (event-driven client roster) | — |
 | **Notification Layer** | Gmail (structured HTML coaching brief) | — |
 | **Memory** | Stateless per-run — intelligence delivered as structured email records | — |
+| **Evaluation & Testing** | n8n native Evaluations (extraction fidelity) + Retell AI Simulation Testing (conversation fidelity) | [`docs/evaluation-harness.md`](docs/evaluation-harness.md) |
 
 **Architecture:** Two decoupled flows:
 1. **Outbound Flow** — Schedule Trigger → Google Calendar → GPT-4o-mini Extraction → Retell AI outbound call
@@ -48,7 +49,7 @@
 
 ## 📊 Performance & Insights
 
-* **Response Velocity:** Achieved a **sub-900ms response loop** by switching the extraction layer from GPT-4o to GPT-4o-mini and tuning Retell AI's End-of-Turn Detection threshold to 700ms — the minimum threshold for natural conversation flow without false triggers.
+* **Response Velocity:** Current measured response loop is **1050–1400ms** per the live Retell AI dashboard, achieved by switching the extraction layer from GPT-4o to GPT-4o-mini and tuning Retell AI's End-of-Turn Detection threshold to 700ms — the minimum threshold for natural conversation flow without false triggers. An earlier-cited **sub-900ms** figure predates the guardrail expansion (a longer system message plausibly added latency); the two measurements are reconciled in [`docs/evaluation-harness.md`](docs/evaluation-harness.md).
 
 * **The Bilingual Breakthrough:** The "Intelligent Bilingual Normalization" system is the core IP of this agent. Standard STT pipelines fail on bilingual speakers because they optimize for English phonetics. Moving from static word-lookup tables to **contextual intent recognition** improved energy score extraction accuracy by approximately **40% for non-native English speakers** — the dominant demographic in the Montreal fitness market.
 

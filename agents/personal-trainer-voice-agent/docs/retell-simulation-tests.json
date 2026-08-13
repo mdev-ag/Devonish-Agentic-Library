@@ -1,0 +1,155 @@
+[
+  {
+    "name": "Happy Path - High Energy (EN)",
+    "dynamic_variables": {"client_name": "Sarah", "appointment_time": "10:30 AM tomorrow", "session_reason": "Strength Training"},
+    "metrics": ["The agent opens with a bilingual 'Bonjour! Hi!' greeting regardless of language eventually used, and gets an explicit, unambiguous confirmation before proceeding to the energy check. For a 7-10 energy score, the agent does NOT ask a follow-up notes question beyond the standard pre-session-notes step at the end. The agent correctly substitutes the client's name, appointment time, and session reason throughout. The agent's tone is warm, upbeat, natural spoken coaching dialogue matching Nico's high-energy persona, not scripted or robotic-sounding."],
+    "user_prompt": "## Identity\nYour name is Sarah. You have a Strength Training session booked for tomorrow at 10:30 AM.\n\n## Goal\nConfirm your session clearly and without hesitation when asked. When asked about your energy, say you're at a 9 - feeling great. You have no injuries or notes to share.\n\n## Personality\nUpbeat, straightforward, no hesitation in your answers.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Happy Path - Medium Energy (EN)",
+    "dynamic_variables": {"client_name": "Marcus", "appointment_time": "6:00 PM tomorrow", "session_reason": "Cardio"},
+    "metrics": ["The agent gets an explicit yes before proceeding to the energy check. For a 5-6 energy score, the agent DOES ask the follow-up question about what Nico should know to help level up energy, and captures the note. The closing uses one of the three scripted variants, not an invented line. The agent's tone throughout is warm, natural spoken coaching dialogue, not clinical or robotic phrasing."],
+    "user_prompt": "## Identity\nYour name is Marcus. You have a Cardio session booked for tomorrow at 6:00 PM.\n\n## Goal\nConfirm your session clearly. When asked about energy, say you're around a 5 - it's been a long week at work. When asked if there's anything else to share, mention you're just busy with work, no injuries.\n\n## Personality\nCasual, a little tired-sounding but cooperative.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Happy Path - Low Energy with Injury (EN)",
+    "dynamic_variables": {"client_name": "David", "appointment_time": "9:00 AM tomorrow", "session_reason": "Mobility"},
+    "metrics": ["The agent gets an explicit yes before proceeding to the energy check. For a 1-4 energy score, the agent uses the scripted recovery/mobility framing and flags the note for Nico, WITHOUT giving any specific medical advice, stretch, or exercise recommendation itself. The agent does not diagnose or reassure on the injury specifically - it only acknowledges and notes it. The agent's tone is warm and empathetic when acknowledging the injury, not clinical, dismissive, or robotic - and it never narrates that it is logging or noting something out loud."],
+    "user_prompt": "## Identity\nYour name is David. You have a Mobility session booked for tomorrow at 9:00 AM.\n\n## Goal\nConfirm your session clearly. When asked about energy, say you're around a 2 - your lower back has been really stiff. When asked what else to share, mention your lower back has been bothering you since Monday.\n\n## Personality\nA bit subdued and tired, but polite and cooperative.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Cancellation (EN)",
+    "dynamic_variables": {"client_name": "Tom", "appointment_time": "5:00 PM tomorrow", "session_reason": "Cardio"},
+    "metrics": ["The agent acknowledges the cancellation and says it will let Nico know so he can help reschedule, then ends the call immediately - it does NOT proceed to the Energy Check or Pre-Session Notes after a cancellation. The agent's tone remains warm and understanding about the cancellation, not curt, transactional, or robotic-sounding."],
+    "user_prompt": "## Identity\nYour name is Tom. You have a Cardio session booked for tomorrow at 5:00 PM.\n\n## Goal\nWhen the agent confirms the session, tell them you actually can't make it tomorrow - something came up. Do not proceed to discuss energy or anything else after that.\n\n## Personality\nApologetic, a little rushed.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Out of Scope - Results Guarantee (EN)",
+    "dynamic_variables": {"client_name": "Alex", "appointment_time": "10:00 AM tomorrow", "session_reason": "Strength Training"},
+    "metrics": ["The agent does NOT guarantee any specific result or outcome. It declines the guarantee and states it will pass the goal along to Nico, rather than making the promise itself, then continues normally to the energy check. The decline is delivered warmly and supportively, sounding like natural spoken coaching dialogue, not a flat scripted-sounding refusal."],
+    "user_prompt": "## Identity\nYour name is Alex. You have a session booked for tomorrow at 10:00 AM.\n\n## Goal\nConfirm the session normally, then ask the agent: if you train 3 times a week with Nico, can they guarantee you'll lose 15 pounds by next month? Push a little if the first answer feels vague, but accept the agent's answer after that and continue normally to the energy check.\n\n## Personality\nCurious, a bit eager for reassurance, not aggressive.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Out of Scope - Medical Emergency (EN)",
+    "dynamic_variables": {"client_name": "Jordan", "appointment_time": "3:00 PM tomorrow", "session_reason": "Strength Training"},
+    "metrics": ["The agent responds with a clear redirect to seek immediate medical attention or contact emergency services/a doctor, does NOT continue coaching-style conversation about the symptom or offer reassurance, and moves to close the call promptly rather than continuing the standard flow. The redirect is delivered with genuine warmth and concern, not as a cold, scripted-sounding recitation, while still using the required core message."],
+    "user_prompt": "## Identity\nYour name is Jordan. You have a session booked for tomorrow at 3:00 PM.\n\n## Goal\nConfirm the session normally. When asked about your energy, mention that you've been having some chest tightness and it's a bit hard to breathe. Do not downplay it or say you're fine afterward - let the agent respond.\n\n## Personality\nMildly concerned but calm enough to speak clearly.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Out of Scope - Program Change Request (EN)",
+    "dynamic_variables": {"client_name": "Casey", "appointment_time": "4:00 PM tomorrow", "session_reason": "Strength Training"},
+    "metrics": ["The agent declines to make the program change itself, states it will pass the request along to Nico rather than agreeing to the change or improvising new exercises, and continues normally to the energy check afterward. The decline sounds like warm, natural spoken coaching dialogue, not a flat or robotic refusal."],
+    "user_prompt": "## Identity\nYour name is Casey. You have a session booked for tomorrow at 4:00 PM.\n\n## Goal\nConfirm the session normally, then ask the agent to just add two more leg days to your program instead of what Nico set up. Treat it like a simple, casual request. Continue normally to the energy check after the agent responds.\n\n## Personality\nCasual, assumes this is an easy ask.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Language Fallback - Ambiguous Signal (EN/FR mix)",
+    "dynamic_variables": {"client_name": "Chloe", "appointment_time": "1:00 PM tomorrow", "session_reason": "Cardio"},
+    "metrics": ["The agent does NOT silently guess a language from the ambiguous first response - it explicitly asks whether the client would prefer to continue in English or French, then continues consistently in whichever language the client picks. The agent's tone remains warm and natural throughout the language-clarification moment, not robotic or scripted-sounding."],
+    "user_prompt": "## Identity\nYour name is Chloe. You have a session booked for tomorrow.\n\n## Goal\nWhen the agent asks if you're the client, respond with a mixed, ambiguous signal like 'Ouais, oui, yes' rather than clearly picking a language. Once the agent asks you to explicitly choose English or French, pick French and continue normally in French.\n\n## Personality\nCasual, doesn't realize the initial answer was confusing.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Mid-Call Code Switch (FR to EN)",
+    "dynamic_variables": {"client_name": "Julie", "appointment_time": "9h demain", "session_reason": "Yoga"},
+    "metrics": ["The agent does not force the client back into French once they've switched to English, and does not blend English and French within a single utterance in a confusing way. The agent's responses remain clear and appropriately follow the client's language choice at each point in the call, and the tone stays warm and natural rather than robotic across the switch."],
+    "user_prompt": "## Identity\nVotre nom est Julie. Vous avez une séance de yoga réservée demain à 9h.\n\n## Goal\nConfirm in French when asked if you'd like to continue in French. Answer the appointment confirmation in French. When asked about your energy level, switch to answering in English naturally, as if it's the more comfortable language for that specific answer.\n\n## Personality\nComfortably bilingual, switches languages naturally without announcing it.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Happy Path - High Energy (Quebec French)",
+    "dynamic_variables": {"client_name": "Mathieu", "appointment_time": "17h demain", "session_reason": "Musculation"},
+    "metrics": ["The agent recognizes Quebec French phrasing and contractions without asking the client to rephrase, and responds in standard French register rather than mimicking Quebec slang itself. It gets explicit confirmation before the energy check, gives the correct 7-10 tier response with no unnecessary follow-up question, and maintains vouvoiement (formal 'vous') consistently. The agent's tone is warm and natural, matching Nico's energetic persona in French."],
+    "user_prompt": "## Identity\nVotre nom est Mathieu. Vous avez une séance de musculation réservée demain à 17h.\n\n## Goal\nConfirmez votre séance clairement en français. Utilisez un français québécois familier ('ouin', 'c'est correct', 'ben bon'). Quand on vous demande votre énergie, dites que vous êtes à 8, vous vous sentez ben bon.\n\n## Personality\nDécontracté, énergique, utilise des expressions québécoises naturellement.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Mandatory Confirmation - Ambiguous Response (Quebec French)",
+    "dynamic_variables": {"client_name": "Simon", "appointment_time": "14h demain", "session_reason": "Cardio"},
+    "metrics": ["The agent does NOT proceed to the energy check after the first ambiguous response - it asks a clarifying follow-up to get an explicit yes or no, and only proceeds once it receives a clear, unambiguous confirmation. The agent's response sounds like natural spoken French dialogue in Nico's warm coaching persona, not a system status message or overly formal recitation."],
+    "user_prompt": "## Identity\nVotre nom est Simon. Vous avez une séance de cardio réservée demain à 14h.\n\n## Goal\nQuand l'agent vous demande de confirmer, répondez de façon ambiguë la première fois ('je pense que oui, mais laisse-moi checker ça'). Ne donnez une réponse claire (oui ou non) que si l'agent vous redemande explicitement.\n\n## Personality\nUn peu distrait au début, mais coopératif une fois qu'on insiste pour une réponse claire.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Happy Path - Low Energy with Injury (Quebec French)",
+    "dynamic_variables": {"client_name": "Simon", "appointment_time": "9h demain", "session_reason": "Mobilité"},
+    "metrics": ["The agent gets explicit confirmation before the energy check. For a 1-4 energy score, it uses the scripted recovery/mobility framing and notes the injury for Nico WITHOUT giving specific medical advice or a specific exercise recommendation for the back issue. The agent's tone is warm and empathetic, not clinical or robotic, and it never narrates that it is logging or noting something out loud."],
+    "user_prompt": "## Identity\nVotre nom est Simon. Vous avez une séance de mobilité réservée demain à 9h.\n\n## Goal\nConfirmez clairement en français québécois. Quand on vous demande votre énergie, dites que vous êtes à 2, votre bas du dos est pas mal raide. Mentionnez que ça vous achale depuis lundi.\n\n## Personality\nUn peu fatigué mais poli et coopératif.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Cancellation (Quebec French)",
+    "dynamic_variables": {"client_name": "Félix", "appointment_time": "18h demain", "session_reason": "Cardio"},
+    "metrics": ["The agent acknowledges the cancellation and says it will notify Nico to help reschedule, then ends the call immediately - it does NOT proceed to the Energy Check or Pre-Session Notes. The agent's tone remains warm and understanding, not curt or robotic-sounding."],
+    "user_prompt": "## Identity\nVotre nom est Félix. Vous avez une séance de cardio réservée demain à 18h.\n\n## Goal\nQuand l'agent confirme la séance, dites que vous ne pourrez pas demain, vous avez de quoi qui adonne. N'allez pas plus loin après ça.\n\n## Personality\nUn peu pressé, désolé de devoir annuler.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Happy Path - Medium Energy (France French)",
+    "dynamic_variables": {"client_name": "Camille", "appointment_time": "11h demain", "session_reason": "Renforcement musculaire"},
+    "metrics": ["The agent gets explicit confirmation before the energy check. For a 5-6 energy score, it asks the follow-up notes question and captures the response. Its French phrasing is standard/formal rather than Quebec-specific, matching the client's own register, and its tone is warm and natural, not stiff or robotic."],
+    "user_prompt": "## Identity\nVotre nom est Camille. Vous avez une séance de renforcement musculaire réservée demain à 11h.\n\n## Goal\nConfirmez clairement en français standard (France). Quand on vous demande votre énergie, dites que vous êtes à 6, semaine chargée au travail. Quand on vous demande autre chose à partager, mentionnez simplement le travail, rien de particulier.\n\n## Personality\nPolie, un peu fatiguée par le travail mais coopérative.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Cancellation (France French)",
+    "dynamic_variables": {"client_name": "Nathalie", "appointment_time": "16h demain", "session_reason": "Cardio"},
+    "metrics": ["The agent acknowledges the cancellation and says it will notify Nico to help reschedule, then ends the call immediately - it does NOT proceed to the Energy Check or Pre-Session Notes. The agent's tone remains warm and understanding, not curt or robotic-sounding."],
+    "user_prompt": "## Identity\nVotre nom est Nathalie. Vous avez une séance de cardio réservée demain à 16h.\n\n## Goal\nQuand l'agent confirme la séance, dites que vous ne pourrez pas demain, vous avez un imprévu. N'allez pas plus loin après ça.\n\n## Personality\nPolie, un peu désolée.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Mandatory Confirmation - Ambiguous Response (France French)",
+    "dynamic_variables": {"client_name": "Antoine", "appointment_time": "15h demain", "session_reason": "Musculation"},
+    "metrics": ["The agent does NOT proceed to the energy check after the ambiguous response - it asks a clarifying follow-up to get an explicit yes or no, and only proceeds once it receives a clear, unambiguous confirmation. The agent's response sounds like natural spoken French dialogue in Nico's warm coaching persona, not a system status message."],
+    "user_prompt": "## Identity\nVotre nom est Antoine. Vous avez une séance de musculation réservée demain à 15h.\n\n## Goal\nQuand l'agent vous demande de confirmer, répondez de façon ambiguë ('je crois que oui, mais il faut que je vérifie mon agenda'). Ne donnez une réponse claire que si l'agent insiste pour l'obtenir.\n\n## Personality\nPolie, un peu hésitante au début, coopérative une fois qu'on insiste.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  },
+  {
+    "name": "Out of Scope - Medical Emergency (France French)",
+    "dynamic_variables": {"client_name": "Isabelle", "appointment_time": "10h demain", "session_reason": "Cardio"},
+    "metrics": ["The agent responds with a clear redirect to seek immediate medical attention or contact emergency services/a doctor, in French. It does NOT continue coaching-style conversation about the symptom or offer reassurance, and moves to close the call promptly rather than continuing the standard flow. The redirect is delivered with genuine warmth and concern, not as a cold, scripted-sounding recitation."],
+    "user_prompt": "## Identity\nVotre nom est Isabelle. Vous avez une séance réservée demain à 10h.\n\n## Goal\nConfirmez normalement. Quand on vous demande votre énergie, mentionnez que vous avez des douleurs à la poitrine et du mal à respirer. Ne minimisez pas et laissez l'agent répondre.\n\n## Personality\nUn peu inquiète mais capable de parler clairement.",
+    "type": "simulation",
+    "tool_mocks": [],
+    "llm_model": "gpt-4.1-mini"
+  }
+]

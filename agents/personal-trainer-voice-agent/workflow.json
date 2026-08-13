@@ -177,8 +177,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -16,
-        336
+        -64,
+        384
       ],
       "id": "88500d07-7727-48f6-ba19-1ccd9ea5cbba",
       "name": "Webhook",
@@ -196,10 +196,10 @@
           "values": [
             {
               "role": "system",
-              "content": "Role & Context\n\nYou are Nico Minvielle's Data Analyst. Your task is to analyze transcripts from Retell bilingual (English/French) check-in calls and extract structured intelligence.\n\nIntelligent Bilingual Normalization\n\nThe transcription engine often misinterprets French phonetics as English words. You must apply the following logic:\n\nContextual Inference: Identify the language preference established at the start. If French is chosen, interpret English-sounding transcriptions as French phonetic equivalents (e.g., \"We\" -> \"Oui\", \"Dies\" -> \"Dix\", \"Cat\" -> \"Quatre\").\n\nIntent Over Literalism: Prioritize conversational intent over literal spelling.\n\nNumber Resolution: Resolve energy scores to the intended integer (1-10).\n\nTranslation: Translate all extracted qualitative notes (drivers, injuries) into English for Nico’s briefing.\n\nExtraction Rules (The Data Contract)\n\nclient_name: The name of the client.\n\nappointment_confirmed: Boolean (True if confirmed; False if cancelled/reschedule requested).\n\nenergy_level: Integer (1-10). Resolve phonetic numbers.\n\ncontextual_drivers: A concise English summary of why their energy is at that level.\n\nhealth_injury_notes: Capture specific physical complaints, injuries, work stress, or personal updates shared (including the final \"share with Nico\" section).\n\nOutput Format\n\nOutput ONLY a valid, structured JSON object. If a piece of information is missing from the transcript, you MUST still provide the key with an empty string \"\" or a default value (like False for booleans) to satisfy the schema requirements."
+              "content": "Role & Context\nYou are Nico Minvielle's Data Analyst. Your task is to analyze transcripts from Retell bilingual (English/French) check-in calls and extract structured intelligence.\n\nIntelligent Bilingual Normalization\nThe transcription engine often misinterprets French phonetics as English words. You must apply the following logic:\nContextual Inference: Identify the language preference established at the start. If French is chosen, interpret English-sounding transcriptions as French phonetic equivalents (e.g., \"We\" -> \"Oui\", \"Dies\" -> \"Dix\", \"Cat\" -> \"Quatre\").\nScope Limit: Apply this normalization only to short, isolated tokens such as numbers or single words. Do not reinterpret longer English phrases or full sentences as mis-transcribed French — a client may deliberately switch languages mid-call. If the client is clearly speaking in a different language than the one established, extract based on the language they actually used, not the one originally selected.\nIntent Over Literalism: Prioritize conversational intent over literal spelling.\nNumber Resolution: Resolve energy scores to the intended integer (1-10).\nTranslation: Translate all extracted qualitative notes (drivers, injuries, cancellation reasons) into English for Nico's briefing.\n\nCall Reach Check\nBefore extracting the fields below, determine whether the client was actually reached and spoke on the call themselves. If the call was answered by a third party who took a message, or went to voicemail, the client did not confirm anything and no energy check occurred — this is a Not Reached call, not a confirmed or cancelled one.\n\nExtraction Rules (The Data Contract)\nclient_name: The name of the client.\nappointment_confirmed: One of true, false, or null.\n  - true: the client explicitly confirmed the session on the call.\n  - false: the client explicitly cancelled or requested a reschedule.\n  - null: the call was Not Reached (per Call Reach Check above) — no confirmation was possible.\ncancellation_reason: A concise English summary of the reason given if appointment_confirmed is false. Leave as an empty string otherwise. Scheduling or availability reasons belong here, not in health_injury_notes.\nenergy_level: Integer (1-10). Resolve phonetic numbers. Leave as 0 if the call was Not Reached or ended in cancellation before the energy check occurred.\ncontextual_drivers: A concise English summary of why their energy is at that level. Leave empty if not applicable.\nhealth_injury_notes: Capture specific physical complaints, injuries, or personal updates shared (including the final \"share with Nico\" section) — health and physical context only, never scheduling or cancellation reasons.\n\nOutput Format\nOutput ONLY a valid, structured JSON object. If a piece of information is missing from the transcript, you MUST still provide the key with an empty string \"\" or the appropriate default value to satisfy the schema requirements."
             },
             {
-              "content": "=Transcript:  {{ $json.body.call.transcript }}"
+              "content": "=Transcript: {{ $json.body?.call?.transcript ?? $json.transcript_input }}"
             }
           ]
         },
@@ -231,14 +231,14 @@
     {
       "parameters": {
         "sendTo": "{{YOUR_EMAIL_ADDRESS}}",
-        "subject": "={{ $json.output[0].content[0].text.energy_level <= 4 ? \"⚠️ URGENT: \" : \"\" }}{{ $json.output[0].content[0].text.appointment_confirmed ? \"✅ Confirmed\" : \"❌ Cancelled\" }}: {{ $json.output[0].content[0].text.client_name }} ({{ $json.output[0].content[0].text.energy_level }}/10)\n",
-        "message": "=<h3>Performance Briefing: {{ $json.output[0].content[0].text.client_name }}</h3>\n\n<p><strong>Status:</strong> {{ $json.output[0].content[0].text.appointment_confirmed ? \"✅ CONFIRMED\" : \"❌ CANCELLED / RESCHEDULE REQUESTED\" }}</p>\n\n<hr>\n\n<h4>📊 Session Readiness</h4>\n<ul>\n  <li><strong>Energy Level:</strong> {{ $json.output[0].content[0].text.energy_level }}/10</li>\n  <li><strong>Context:</strong> {{ $json.output[0].content[0].text.contextual_drivers }}</li>\n</ul>\n\n<h4>🩹 Physical Notes</h4>\n<p>{{ $json.output[0].content[0].text.health_injury_notes || \"No injuries or physical complaints reported.\" }}</p>\n\n<hr>\n\n<p><small><em>This report was automatically generated by Nico's AI Assistant.</em></small></p>\n",
+        "subject": "={{ $json.output[0].content[0].text.appointment_confirmed === true && $json.output[0].content[0].text.energy_level <= 4 ? \"⚠️ URGENT: \" : \"\" }}{{ $json.output[0].content[0].text.appointment_confirmed === true ? \"✅ Confirmed\" : $json.output[0].content[0].text.appointment_confirmed === false ? \"❌ Cancelled\" : \"📵 Not Reached\" }}: {{ $json.output[0].content[0].text.client_name }}{{ $json.output[0].content[0].text.appointment_confirmed === true ? \" (\" + $json.output[0].content[0].text.energy_level + \"/10)\" : \"\" }}",
+        "message": "=<h3>Performance Briefing: {{ $json.output[0].content[0].text.client_name }}</h3>\n<p><strong>Status:</strong> {{ $json.output[0].content[0].text.appointment_confirmed === true ? \"✅ CONFIRMED\" : $json.output[0].content[0].text.appointment_confirmed === false ? \"❌ CANCELLED / RESCHEDULE REQUESTED\" : \"📵 NOT REACHED — no confirmation possible\" }}</p>\n<hr>\n{{ $json.output[0].content[0].text.appointment_confirmed === false ? \"<h4>📋 Reason</h4><p>\" + ($json.output[0].content[0].text.cancellation_reason || \"No reason given.\") + \"</p><hr>\" : \"\" }}\n{{ $json.output[0].content[0].text.appointment_confirmed === true ? \"<h4>📊 Session Readiness</h4><ul><li><strong>Energy Level:</strong> \" + $json.output[0].content[0].text.energy_level + \"/10</li><li><strong>Context:</strong> \" + $json.output[0].content[0].text.contextual_drivers + \"</li></ul>\" : \"\" }}\n<h4>🩹 Physical Notes</h4>\n<p>{{ $json.output[0].content[0].text.health_injury_notes || \"No injuries or physical complaints reported.\" }}</p>\n<hr>\n<p><small><em>This report was automatically generated by Nico's AI Assistant.</em></small></p>",
         "options": {}
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        544,
+        912,
         336
       ],
       "id": "462c659a-b219-44ac-8e5b-ea6b4e1c20e2",
@@ -250,6 +250,65 @@
           "name": "Gmail account"
         }
       }
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "{{N8N_DATATABLE_ID}}",
+          "mode": "list",
+          "cachedResultName": "nico_transcript_eval",
+          "cachedResultUrl": "/projects/{{N8N_PROJECT_ID}}/datatables/{{N8N_DATATABLE_ID}}"
+        }
+      },
+      "type": "n8n-nodes-base.evaluationTrigger",
+      "typeVersion": 4.7,
+      "position": [
+        -64,
+        208
+      ],
+      "id": "83fec555-7b4f-4263-8679-57923732d8c0",
+      "name": "When fetching a dataset row"
+    },
+    {
+      "parameters": {
+        "operation": "checkIfEvaluating"
+      },
+      "type": "n8n-nodes-base.evaluation",
+      "typeVersion": 4.8,
+      "position": [
+        544,
+        336
+      ],
+      "id": "32c63ef1-1381-4161-8a7e-76c631ad6dd3",
+      "name": "Evaluation"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "{{N8N_DATATABLE_ID}}",
+          "mode": "list",
+          "cachedResultName": "nico_transcript_eval",
+          "cachedResultUrl": "/projects/{{N8N_PROJECT_ID}}/datatables/{{N8N_DATATABLE_ID}}"
+        },
+        "outputs": {
+          "values": [
+            {
+              "outputName": "actual_output",
+              "outputValue": "={{ $('Message a model1').item.json.output }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.evaluation",
+      "typeVersion": 4.8,
+      "position": [
+        752,
+        240
+      ],
+      "id": "3c9e64f2-1984-41eb-934f-a9cbb0f9f549",
+      "name": "Evaluation1"
     }
   ],
   "pinData": {},
@@ -313,6 +372,35 @@
       "main": [
         [
           {
+            "node": "Evaluation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When fetching a dataset row": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluation": {
+      "main": [
+        [
+          {
+            "node": "Evaluation1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Send a message",
             "type": "main",
             "index": 0
@@ -327,11 +415,12 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "ddde3b36-1d4e-4d8e-a8fc-8d4c3d59d24a",
+  "versionId": "e68c3d21-57be-43d2-ae63-66b3d92c199e",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "{{N8N_INSTANCE_ID}}"
   },
+  "nodeGroups": [],
   "id": "UM1mlD0BBUpXcgh9",
   "tags": []
 }
